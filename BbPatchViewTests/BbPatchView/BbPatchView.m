@@ -11,8 +11,12 @@
 #import "BbPortView.h"
 #import "UIView+BbPatch.h"
 #import "BbPatchGestureRecognizer.h"
+#import "BbGestureHandler.h"
 
-@interface BbPatchView () <UIGestureRecognizerDelegate>
+static NSTimeInterval       kLongPressMinDuration = 0.5;
+static CGFloat              kMaxMovement          = 20.0;
+
+@interface BbPatchView () <UIGestureRecognizerDelegate,BbGestureHandlerHost>
 
 @property (nonatomic,weak)          BbInletView                         *selectedInlet;
 @property (nonatomic,weak)          BbOutletView                        *selectedOutlet;
@@ -27,6 +31,13 @@
 @property (nonatomic)               BbPatchViewType                     lastViewType;
 
 @property (nonatomic,strong)        UIBezierPath                        *activeConnection;
+
+
+
+@property (nonatomic)               NSUInteger                          hasSelectedObject;
+@property (nonatomic)               NSUInteger                          hasSelectedOutlet;
+@property (nonatomic)               NSUInteger                          hasSelectedInlet;
+
 
 @end
 
@@ -76,6 +87,12 @@
 
 - (void)handleGesture:(BbPatchGestureRecognizer *)gesture
 {
+    if ( gesture.state == UIGestureRecognizerStateCancelled ) {
+        [self resetGestureStateConditions];
+    }else if ( gesture.numberOfTouches > 1 ){
+        [self.gesture stopTracking];
+    }
+    
     switch (gesture.state) {
         case UIGestureRecognizerStateBegan:
         {
@@ -85,11 +102,6 @@
         case UIGestureRecognizerStateChanged:
         {
             [self handleGestureMoved:gesture];
-        }
-            break;
-        case UIGestureRecognizerStateCancelled:
-        {
-            [self handleGestureCancelled:gesture];
         }
             break;
         case UIGestureRecognizerStateEnded:
@@ -105,129 +117,156 @@
 
 - (void)handleGestureBegan:(BbPatchGestureRecognizer *)gesture
 {
-    BbPatchViewType type = [self viewType:gesture.firstView];
-    self.firstViewType = type;
+    self.currentViewType = [self viewType:gesture.firstView];
+    self.firstViewType = self.currentViewType;
+    BOOL isEditing = ( self.editState > BbPatchViewEditState_Default );
     
-    switch (gesture.numberOfTouches) {
-        case 1:
+    switch (self.firstViewType) {
+        
+        case BbPatchViewType_Object:
+        case BbPatchViewType_ObjectSubview:
         {
-            self.firstViewType = type;
-            switch (type) {
-                    
-                case BbPatchViewType_Object:
-                {
-                    //Select view and prepare to pan or move
-                    [self.delegate patchView:self setScrollViewShouldBegin:NO];
-                    self.selectedBox = (BbBoxView *)gesture.firstView;
-                }
-                    break;
-                case BbPatchViewType_Outlet:
-                {
-                    //Select outlet and prepare to draw connection
-                    [self.delegate patchView:self setScrollViewShouldBegin:NO];
-                    self.selectedOutlet = (BbOutletView *)gesture.firstView;
-                    
-                }
-                    break;
-                default:
-                    [gesture stopTracking];
-                    [self.delegate patchView:self setScrollViewShouldBegin:YES];
-                    break;
+            //Select view and prepare to pan or move
+            [self.delegate patchView:self setScrollViewShouldBegin:NO];
+            UIView *first = gesture.firstView;
+            self.selectedBox = ( self.firstViewType == BbPatchViewType_Object ) ? (BbBoxView *)first : (BbBoxView *)first.superview;
+        }
+            break;
+        case BbPatchViewType_Outlet:
+        {
+            if ( isEditing ) {
+                [gesture stopTracking];
+                return;
+            }
+            //Select outlet and prepare to draw connection
+            [self.delegate patchView:self setScrollViewShouldBegin:NO];
+            self.selectedOutlet = (BbOutletView *)gesture.firstView;
+            
+        }
+            break;
+        case BbPatchViewType_ActionObject:
+        {
+            [self.delegate patchView:self setScrollViewShouldBegin:NO];
+            if ( isEditing ) {
+                //send object actions
             }
         }
             break;
-            
+        case BbPatchViewType_Patch:
+        {
+            if ( !gesture.repeatCount ) {
+                [gesture stopTracking];
+                [self.delegate patchView:self setScrollViewShouldBegin:YES];
+            }
+        }
+            break;
         default:
-            //TO DO: Handle multi touch?
+        {
             [gesture stopTracking];
             [self.delegate patchView:self setScrollViewShouldBegin:YES];
-            
+        }
             break;
     }
+
 }
 
 - (void)handleGestureMoved:(BbPatchGestureRecognizer *)gesture
 {
-    BbPatchViewType type = [self viewType:gesture.currentView];
-    self.currentViewType = type;
-    
-    switch (gesture.numberOfTouches) {
-        case 1:
+    self.currentViewType = [self viewType:gesture.currentView];
+    BOOL isEditing = ( self.editState > BbPatchViewEditState_Default );
+
+    switch (self.currentViewType) {
+            
+        case BbPatchViewType_Inlet:
         {
-            switch (type) {
-                case BbPatchViewType_Inlet:
-                {
-                    if ( nil != self.selectedOutlet ) {
-                        self.selectedInlet = (BbInletView *)gesture.currentView;
-                    }
-                }
-                    break;
-                    
-                default:
-                    self.selectedInlet = nil;
-                    
-                    switch (self.firstViewType) {
-                        case BbPatchViewType_Object:
-                        {
-                            if ( nil == self.selectedBox ) {
-                                return;
-                            }
-                            
-                            CGPoint pos = [self positionForBoxView:self.selectedBox withDeltaPos:gesture.deltaPosition];
-                            [self.selectedBox setPosition:pos];
-                        }
-                            break;
-                        case BbPatchViewType_Outlet:
-                        {
-                            [self setNeedsDisplay];
-                        }
-                            break;
-                        default:
-                            break;
-                    }
-                    break;
+            if ( !isEditing && self.hasSelectedOutlet ) {
+                self.selectedInlet = (BbInletView *)gesture.currentView;
             }
         }
             break;
             
         default:
-            [self.delegate patchView:self setScrollViewShouldCancel:NO];
+            
+            self.selectedInlet = nil;
+            
+            switch (self.firstViewType) {
+                case BbPatchViewType_Object:
+                {
+                    if ( !isEditing && !self.hasSelectedObject ) {
+                        [gesture stopTracking];
+                        return;
+                    }
+                    if ( isEditing ) {
+                        NSArray *selected = [self getSelectedBoxViews];
+                        //Move selected
+                    }else if ( self.hasSelectedObject ){
+                        CGPoint pos = [self positionForBoxView:self.selectedBox withDeltaPos:gesture.deltaPosition];
+                        [self.selectedBox setPosition:pos];
+                    }
+                }
+                    break;
+                case BbPatchViewType_Outlet:
+                {
+                    if ( !isEditing ) {
+                        //Draw connection
+                        [self setNeedsDisplay];
+                    }
+                }
+                    break;
+                    
+                default:
+                    
+                    break;
+            }
             break;
     }
-}
-
-- (void)handleGestureCancelled:(BbPatchGestureRecognizer *)gesture
-{
-    NSLog(@"gesture cancelled");
 }
 
 - (void)handleGestureEnded:(BbPatchGestureRecognizer *)gesture
 {
-    BbPatchViewType type = [self viewType:gesture.currentView];
-    self.lastViewType = type;
-    switch (gesture.numberOfTouches) {
-        case 1:
+    self.currentViewType = [self viewType:gesture.currentView];
+    BOOL isEditing = ( self.editState > BbPatchViewEditState_Default );
+    switch ( self.currentViewType ) {
+        case BbPatchViewType_Inlet:
         {
-            switch (type) {
-                case BbPatchViewType_Inlet:
-                {
-                    if ( nil!=self.selectedOutlet && nil!= self.selectedOutlet ) {
-                        NSLog(@"WE'VE GOT A NEW CONNECTION!");
-                    }
-                }
-                    break;
-                    
-                default:
-                    break;
+            if ( !isEditing && self.hasSelectedOutlet && self.hasSelectedInlet ) {
+                //make connection
             }
         }
             break;
-            
+        case BbPatchViewType_Patch:
+        {
+            if ( !isEditing && gesture.repeatCount && gesture.movement < kMaxMovement ) {
+                // add box
+            }
+        }
+            break;
+        case BbPatchViewType_Object:
+        {
+            if ( !isEditing ) {
+                if ( gesture.repeatCount && gesture.movement < kMaxMovement ) {
+                    //show box options
+                }else if ( gesture.duration > kLongPressMinDuration  && gesture.movement < kMaxMovement ){
+                    //edit box
+                }
+            }
+        }
+            break;
+        case BbPatchViewType_ActionObject:
+        {
+            if ( !isEditing ) {
+                
+            }
+        }
         default:
-            
             break;
     }
     
+    [self resetGestureStateConditions];
+}
+
+- (void)resetGestureStateConditions
+{
     self.selectedInlet = nil;
     self.selectedOutlet = nil;
     self.selectedBox = nil;
@@ -259,8 +298,10 @@
     _selectedBox = selectedBox;
     if ( nil == _selectedBox ) {
         prevSelBox.selected = NO;
+        self.hasSelectedObject = NO;
     }else{
         _selectedBox.selected = YES;
+        self.hasSelectedObject = YES;
         [self.delegate patchView:self setScrollViewShouldBegin:NO];
     }
 }
@@ -271,8 +312,10 @@
     _selectedInlet = selectedInlet;
     if ( nil == _selectedInlet) {
         prevSelInlet.selected = NO;
+        self.hasSelectedInlet = NO;
     }else{
         _selectedInlet.selected = YES;
+        self.hasSelectedInlet = YES;
     }
 }
 
@@ -282,10 +325,28 @@
     _selectedOutlet = selectedOutlet;
     if ( nil == _selectedOutlet ){
         prevSelOutlet.selected = NO;
+        self.hasSelectedOutlet = NO;
     }else{
         _selectedOutlet.selected = YES;
+        self.hasSelectedInlet = YES;
         [self.delegate patchView:self setScrollViewShouldBegin:NO];
     }
+}
+
+- (NSArray *)getSelectedBoxViews
+{
+    if ( nil == self.boxViews ) {
+        return nil;
+    }
+    
+    NSPredicate *pred = [NSPredicate predicateWithFormat:@"%K == 1",@"selected"];
+    return [self.boxViews filteredArrayUsingPredicate:pred];
+}
+
+#pragma mark - BbGestureHandlerHost
+- (void)gestureHandler:(id)sender selectedAction:(BbGestureAction)action
+{
+    
 }
 
 #pragma mark - Helpers
@@ -297,6 +358,17 @@
     }
     
     BbPatchViewType type = ( [self.viewTypes containsObject:[view class]] ) ? (BbPatchViewType)[ self.viewTypes indexOfObject:[view class] ] : BbPatchViewType_Unknown;
+    
+    if ( type != BbPatchViewType_Unknown ) {
+        return type;
+    }else{
+        id superview = [(UIView *)view superview];
+        BbPatchViewType superviewType = ( [self.viewTypes containsObject:[superview class]] ) ? (BbPatchViewType)[ self.viewTypes indexOfObject:[superview class] ] : BbPatchViewType_Unknown;
+        if ( superviewType == BbPatchViewType_Object ) {
+            return BbPatchViewType_ObjectSubview;
+        }
+    }
+    
     return type;
 }
 

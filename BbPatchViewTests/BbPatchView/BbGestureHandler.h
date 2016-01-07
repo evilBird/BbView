@@ -26,6 +26,8 @@ typedef NS_ENUM(NSInteger, BbGestureAction) {
 };
 
 typedef NS_ENUM(NSInteger, BbGestureStateCondition) {
+    BbGestureStateCondition_FirstViewType,
+    BbGestureStateCondition_CurrentViewType,
     BbGestureStateCondition_GestureState,
     BbGestureStateCondition_PatchIsEditing,
     BbGestureStateCondition_MultiTouch,
@@ -47,7 +49,8 @@ typedef NS_ENUM(NSInteger, BbGestureStateCondition) {
 
 @interface BbGestureHandler : NSObject
 
-@property (nonatomic,weak)                id<BbGestureHandlerHost>            host;
+@property (nonatomic,weak)                              id<BbGestureHandlerHost>            host;
+@property (nonatomic,getter=isObservingGestures)        BOOL                                observingGestures;
 
 - (instancetype)initWithHost:(id<BbGestureHandlerHost>)host;
 

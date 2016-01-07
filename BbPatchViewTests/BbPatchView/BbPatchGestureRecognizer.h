@@ -23,8 +23,10 @@
 @property (nonatomic)                           CGPoint         deltaPosition;
 
 @property (nonatomic)                           NSUInteger      numberOfTouches;
+@property (nonatomic)                           NSUInteger      repeatCount;
 @property (nonatomic)                           NSTimeInterval  duration;
-@property (nonatomic)                           CGPoint         movement;
+@property (nonatomic)                           CGFloat         movement;
+
 @property (nonatomic,getter=isTracking)         BOOL            tracking;
 
 - (void)stopTracking;

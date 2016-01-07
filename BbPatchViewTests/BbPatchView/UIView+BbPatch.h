@@ -11,6 +11,7 @@
 @interface UIView (BbPatch)
 
 CGPoint CGPointGetOffset(CGPoint point, CGPoint referencePoint);
+CGFloat CGPointGetDistance(CGPoint point, CGPoint referencePoint);
 
 - (CGPoint)point2Position:(CGPoint)point;
 

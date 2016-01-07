@@ -17,6 +17,12 @@ CGPoint CGPointGetOffset(CGPoint point, CGPoint referencePoint)
     return CGPointMake(dx, dy);
 }
 
+CGFloat CGPointGetDistance(CGPoint point, CGPoint referencePoint)
+{
+    CGPoint offset = CGPointGetOffset(point, referencePoint);
+    return sqrt((offset.x * offset.x)+(offset.y * offset.y));
+}
+
 - (CGPoint)point2Position:(CGPoint)point
 {
     CGPoint center = self.center;

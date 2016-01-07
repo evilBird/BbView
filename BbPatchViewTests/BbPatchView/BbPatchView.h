@@ -21,10 +21,9 @@ typedef NS_ENUM(NSInteger, BbPatchViewType){
     BbPatchViewType_Object          =   1,
     BbPatchViewType_Inlet           =   2,
     BbPatchViewType_Outlet          =   3,
-    BbPatchViewType_Message         =   4,
-    BbPatchViewType_Bang            =   5,
-    BbPatchViewType_PatchInlet      =   6,
-    BbPatchViewType_PatchOutlet     =   7
+    BbPatchViewType_ActionObject    =   4,
+    BbPatchViewType_ObjectSubview   =   5,
+    BbPatchViewType_PatchOutlet     =   6,
 };
 
 
@@ -40,8 +39,7 @@ typedef NS_ENUM(NSInteger, BbPatchViewType){
 @interface BbPatchView : UIView
 
 @property (nonatomic)               id<BbPatchViewDelegate>         delegate;
-
-@property (nonatomic)               BbPatchViewEditState            *editState;
+@property (nonatomic)               BbPatchViewEditState            editState;
 @property (nonatomic,getter=isOpen) BOOL                            open;
 
 - (void)addBoxView:(BbBoxView *)boxView atPoint:(CGPoint)point;
