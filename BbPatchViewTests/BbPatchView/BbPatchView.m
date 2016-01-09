@@ -11,12 +11,11 @@
 #import "BbPortView.h"
 #import "UIView+BbPatch.h"
 #import "BbPatchGestureRecognizer.h"
-#import "BbGestureHandler.h"
 
 static NSTimeInterval       kLongPressMinDuration = 0.5;
 static CGFloat              kMaxMovement          = 20.0;
 
-@interface BbPatchView () <UIGestureRecognizerDelegate,BbGestureHandlerHost>
+@interface BbPatchView () <UIGestureRecognizerDelegate>
 
 @property (nonatomic,weak)          BbInletView                         *selectedInlet;
 @property (nonatomic,weak)          BbOutletView                        *selectedOutlet;
@@ -344,10 +343,6 @@ static CGFloat              kMaxMovement          = 20.0;
 }
 
 #pragma mark - BbGestureHandlerHost
-- (void)gestureHandler:(id)sender selectedAction:(BbGestureAction)action
-{
-    
-}
 
 #pragma mark - Helpers
 

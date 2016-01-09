@@ -1,0 +1,36 @@
+{
+  "name": "BbView",
+  "version": "0.0.2",
+  "summary": "Views for Bb Objects",
+  "authors": { 
+    "Travis Henspeter": "developer@birdsoundmusic.com"
+  },
+  "homepage": "https://www.github.com/evilBird/BbView",
+  "license": {
+    "type": "Commerical",
+    "file": "LICENSE"
+  },
+  "platforms": {
+    "ios": "8.0"
+  },
+  "requires_arc": true,
+  "source": {
+    "git": "https://www.github.com/evilBird/BbView.git",
+    "tag": "0.0.2"
+  },
+  "frameworks": [
+    "Foundation",
+    "UIKit"
+  ],
+  "source_files":[
+	  "BbPatchViewTests/BbPatchView/*.{h,m}"
+  ],
+  "exclude_files":[
+	  "BbPatchViewTests/BbPatchView/*BbGestureHandler*"
+  ],
+  "dependencies":{
+	  "UIView+Layout":[
+	  	
+	  ]
+  }
+}
