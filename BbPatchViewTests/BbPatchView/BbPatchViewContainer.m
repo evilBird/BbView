@@ -112,6 +112,16 @@
     return self.patchView;
 }
 
+- (void)scrollViewDidZoom:(UIScrollView *)scrollView
+{
+    [self.patchView setNeedsDisplay];
+}
+
+- (void)scrollViewDidEndZooming:(UIScrollView *)scrollView withView:(UIView *)view atScale:(CGFloat)scale
+{
+    [self.patchView setNeedsDisplay];
+}
+
 /*
 // Only override drawRect: if you perform custom drawing.
 // An empty implementation adversely affects performance during animation.
