@@ -7,6 +7,7 @@
 //
 
 #import <UIKit/UIKit.h>
+#import "BbBridge.h"
 
 typedef NS_ENUM(NSInteger, BbPatchViewEditState) {
     BbPatchViewEditState_Default    =   0,
@@ -36,12 +37,18 @@ typedef NS_ENUM(NSInteger, BbPatchViewType){
 
 @class BbBoxView;
 
-@interface BbPatchView : UIView
+@interface BbPatchView : UIView <BbObjectView>
 
 @property (nonatomic)               id<BbPatchViewDelegate>         delegate;
 @property (nonatomic)               BbPatchViewEditState            editState;
 @property (nonatomic,getter=isOpen) BOOL                            open;
 
 - (void)addBoxView:(BbBoxView *)boxView atPoint:(CGPoint)point;
+
+- (id<BbObjectView>)initWithDataSource:(id<BbObjectViewDataSource>)dataSource;
+- (id<BbObjectView>)viewForInletAtIndex:(NSUInteger)index;
+- (id<BbObjectView>)viewForOutletAtIndex:(NSUInteger)index;
+- (void)addConnectionWithPoints:(id)connection;
+- (void)removeConnection:(id)connection;
 
 @end

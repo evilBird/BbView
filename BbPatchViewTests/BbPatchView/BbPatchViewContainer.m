@@ -88,8 +88,7 @@
     
     BbBoxView *box3 = [[BbBoxView alloc]initWithTitleText:@"BbRect 0 0 200 200" inlets:4 outlets:3];
     [self.patchView addBoxView:box3 atPoint:newPoint];
-    
-    
+
 }
 
 

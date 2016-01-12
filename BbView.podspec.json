@@ -31,6 +31,9 @@
   "dependencies":{
 	  "UIView+Layout":[
 	  	
+	  ],
+	  "BbCore":[
+	  	
 	  ]
   }
 }

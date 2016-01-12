@@ -106,6 +106,10 @@ static CGFloat kDefaultPortViewSpacing = 10;
     _myPosition = CGPointZero;
     self.centerXConstraint = [self alignCenterYToSuperOffset:0.0];
     self.centerYConstraint = [self alignCenterXToSuperOffset:0.0];
+    if ( nil != self.dataSource ) {
+        NSValue *pos = [self.dataSource positionForObjectView:self];
+        [self setPosition:pos.CGPointValue];
+    }
 }
 
 - (void)setPosition:(CGPoint)position
@@ -274,7 +278,31 @@ static CGFloat kDefaultPortViewSpacing = 10;
     return size;
 }
 
+#pragma mark - BbObjectView
 
+- (instancetype)initWithDataSource:(id<BbObjectViewDataSource>)dataSource
+{
+    _dataSource = dataSource;
+    return [self initWithTitleText:[_dataSource titleTextForObjectView:self] inlets:[_dataSource numberOfInletsForObjectView:self] outlets:[_dataSource numberOfOutletsForObjectView:self]];
+}
+
+- (id<BbObjectView>)viewForInletAtIndex:(NSUInteger)index
+{
+    if ( index >= self.inletViews.count ) {
+        return nil;
+    }
+    
+    return self.inletViews[index];
+}
+
+- (id<BbObjectView>)viewForOutletAtIndex:(NSUInteger)index
+{
+    if ( index >= self.outletViews.count ) {
+        return nil;
+    }
+    
+    return self.outletViews[index];
+}
 
 /*
 // Only override drawRect: if you perform custom drawing.

@@ -7,8 +7,9 @@
 //
 
 #import <UIKit/UIKit.h>
+#import "BbBridge.h"
 
-@interface BbPortView : UIView
+@interface BbPortView : UIView  <BbObjectView>
 
 @property (nonatomic,strong)                UIColor             *defaultFillColor;
 @property (nonatomic,strong)                UIColor             *selectedFillColor;
