@@ -27,7 +27,7 @@ static NSTimeInterval kCountAsRepeatMaxDuration = 0.2;
     CGPoint sum = CGPointZero;
     NSUInteger numTouches = touches.allObjects.count;
     
-    for ( NSUInteger i = 0 ; i < self.numberOfTouches ; i ++ ) {
+    for ( NSUInteger i = 0 ; i < numTouches ; i ++ ) {
         CGPoint loc = [self locationOfTouch:i inView:self.view];
         sum.x += loc.x;
         sum.y += loc.y;

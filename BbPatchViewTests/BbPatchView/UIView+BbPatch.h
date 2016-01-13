@@ -14,5 +14,7 @@ CGPoint CGPointGetOffset(CGPoint point, CGPoint referencePoint);
 CGFloat CGPointGetDistance(CGPoint point, CGPoint referencePoint);
 
 - (CGPoint)point2Position:(CGPoint)point;
+- (CGPoint)point2Offset:(CGPoint)point;
+- (CGPoint)position2Offset:(CGPoint)position;
 
 @end

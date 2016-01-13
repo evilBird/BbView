@@ -9,13 +9,6 @@
 #import <UIKit/UIKit.h>
 #import "BbBridge.h"
 
-typedef NS_ENUM(NSInteger, BbPatchViewEditState) {
-    BbPatchViewEditState_Default    =   0,
-    BbPatchViewEditState_Editing    =   1,
-    BbPatchViewEditState_Selected   =   2,
-    BbPatchViewEditState_Copied     =   3
-};
-
 typedef NS_ENUM(NSInteger, BbPatchViewType){
     BbPatchViewType_Unknown         =   -1,
     BbPatchViewType_Patch           =   0,
@@ -28,8 +21,11 @@ typedef NS_ENUM(NSInteger, BbPatchViewType){
 };
 
 
-@protocol BbPatchViewDelegate <NSObject>
+@protocol BbPatchViewEventDelegate <NSObject>
 
+- (void)patchView:(id)sender didChangeSize:(NSValue *)size;
+- (void)patchView:(id)sender didChangeContentOffset:(NSValue *)offset;
+- (void)patchView:(id)sender didChangeZoomScale:(NSValue *)zoom;
 - (void)patchView:(id)sender setScrollViewShouldBegin:(BOOL)shouldBegin;
 - (void)patchView:(id)sender setScrollViewShouldCancel:(BOOL)shouldCancel;
 
@@ -37,18 +33,60 @@ typedef NS_ENUM(NSInteger, BbPatchViewType){
 
 @class BbBoxView;
 
-@interface BbPatchView : UIView <BbObjectView>
+@interface BbPatchView : UIView
 
-@property (nonatomic)               id<BbPatchViewDelegate>         delegate;
-@property (nonatomic)               BbPatchViewEditState            editState;
-@property (nonatomic,getter=isOpen) BOOL                            open;
+@property (nonatomic,weak)                  id<BbPatchViewEventDelegate>    eventDelegate;
+@property (nonatomic)                       BbObjectViewEditState           editState;
+@property (nonatomic,getter=isOpen)         BOOL                            open;
+@property (nonatomic,strong)                NSHashTable                     *childViews;
 
-- (void)addBoxView:(BbBoxView *)boxView atPoint:(CGPoint)point;
+@property (nonatomic,weak)                  id<BbObjectViewDataSource>      dataSource;
+@property (nonatomic,weak)                  id<BbObjectViewDelegate>        delegate;
 
-- (id<BbObjectView>)initWithDataSource:(id<BbObjectViewDataSource>)dataSource;
+
+@property (nonatomic,strong)                NSMutableSet                    *connectionPaths;
+@property (nonatomic,strong)                NSMutableSet                    *connectionPathsToRedraw;
+
+- (void)redrawConnectionsIfNeeded;
+
+- (instancetype)initWithDataSource:(id<BbObjectViewDataSource>)dataSource;
+
+@end
+
+@interface BbPatchView (Gestures)
+
+@end
+
+@interface BbPatchView (BbObjectView) <BbObjectView>
+
+- (void)layoutSubviews;
+
++ (id<BbObjectView>)createViewWithDataSource:(id<BbObjectViewDataSource>)dataSource;
+
+- (void)setTitleText:(NSString *)titleText;
+
 - (id<BbObjectView>)viewForInletAtIndex:(NSUInteger)index;
+
 - (id<BbObjectView>)viewForOutletAtIndex:(NSUInteger)index;
-- (void)addConnectionWithPoints:(id)connection;
-- (void)removeConnection:(id)connection;
+
+- (void)removeChildObjectView:(id<BbObjectView>)view;
+
+- (void)addChildObjectView:(id<BbObjectView>)view;
+
+- (void)setSizeWithValue:(NSValue *)value;
+
+- (void)setZoomScaleWithValue:(NSValue *)value;
+
+- (void)setContentOffsetWithValue:(NSValue *)value;
+
+@end
+
+@interface BbPatchView (BbConnectionPathDelegate) <BbConnectionPathDelegate>
+
+- (void)redrawConnectionPath:(id<BbConnectionPath>)connectionPath;
+
+- (void)addConnectionPath:(id<BbConnectionPath>)connectionPath;
+
+- (void)removeConnectionPath:(id<BbConnectionPath>)connectionPath;
 
 @end

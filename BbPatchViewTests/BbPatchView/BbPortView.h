@@ -16,9 +16,14 @@
 @property (nonatomic,strong)                UIColor             *defaultBorderColor;
 @property (nonatomic,strong)                UIColor             *selectedBorderColor;
 @property (nonatomic)                       CGAffineTransform   selectedTransform;
+@property (nonatomic,strong)                NSValue             *objectViewPosition;
+
 @property (nonatomic,getter=isSelected)     BOOL                selected;
 
+@property (nonatomic,weak)                  id<BbObjectViewDataSource>      dataSource;
+
 + (CGSize)defaultPortViewSize;
+
 
 @end
 

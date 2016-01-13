@@ -13,9 +13,9 @@
 
 @interface BbPatchViewContainer : UIView 
 
+- (instancetype)initWithPatchView:(BbPatchView *)patchView;
+
 @property (nonatomic,strong)      BbPatchView       *patchView;
 @property (nonatomic,strong)      BbScrollView      *scrollView;
-
-- (void)testAddBoxes;
 
 @end

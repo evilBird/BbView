@@ -21,7 +21,6 @@ static CGFloat              kMaxMovement          = 20.0;
 @property (nonatomic,weak)          BbOutletView                        *selectedOutlet;
 @property (nonatomic,weak)          BbBoxView                           *selectedBox;
 
-@property (nonatomic,strong)        NSMutableArray                      *boxViews;
 @property (nonatomic,strong)        BbPatchGestureRecognizer            *gesture;
 
 @property (nonatomic,strong)        NSArray                             *viewTypes;
@@ -30,8 +29,6 @@ static CGFloat              kMaxMovement          = 20.0;
 @property (nonatomic)               BbPatchViewType                     lastViewType;
 
 @property (nonatomic,strong)        UIBezierPath                        *activeConnection;
-
-
 
 @property (nonatomic)               NSUInteger                          hasSelectedObject;
 @property (nonatomic)               NSUInteger                          hasSelectedOutlet;
@@ -54,6 +51,18 @@ static CGFloat              kMaxMovement          = 20.0;
     return self;
 }
 
+- (instancetype)initWithDataSource:(id<BbObjectViewDataSource>)dataSource
+{
+    self = [super initWithFrame:CGRectZero];
+    if ( self ) {
+        _dataSource = dataSource;
+        [self commonInit];
+    }
+    
+    return self;
+}
+
+
 - (void)commonInit
 {
     self.gesture = [[BbPatchGestureRecognizer alloc]initWithTarget:self action:@selector(handleGesture:)];
@@ -62,24 +71,9 @@ static CGFloat              kMaxMovement          = 20.0;
     self.gesture.delaysTouchesEnded = YES;
     self.gesture.delegate = self;
     [self addGestureRecognizer:self.gesture];
-}
-
-#pragma mark - Public methods
-
-- (void)addBoxView:(BbBoxView *)boxView atPoint:(CGPoint)point
-{
-    if ( nil == self.boxViews ) {
-        self.boxViews = [NSMutableArray array];
-    }
-    
-    if ( nil == boxView || [self.boxViews containsObject:boxView] ) {
-        return;
-    }
-    
-    [self.boxViews addObject:boxView];
-    [self addSubview:boxView];
-    [self addConstraints:[boxView positionConstraints]];
-    [boxView setPosition:[self point2Position:point]];
+    self.connectionPaths = [[NSMutableSet alloc]init];
+    self.connectionPathsToRedraw = [[NSMutableSet alloc]init];
+    self.childViews = [NSHashTable hashTableWithOptions:NSPointerFunctionsWeakMemory];
 }
 
 #pragma mark - Gestures
@@ -118,7 +112,8 @@ static CGFloat              kMaxMovement          = 20.0;
 {
     self.currentViewType = [self viewType:gesture.firstView];
     self.firstViewType = self.currentViewType;
-    BOOL isEditing = ( self.editState > BbPatchViewEditState_Default );
+    BOOL isEditing = ( self.editState > BbObjectViewEditState_Default );
+    id<BbObjectView> objectView = (id<BbObjectView>)gesture.firstView;
     
     switch (self.firstViewType) {
         
@@ -126,7 +121,7 @@ static CGFloat              kMaxMovement          = 20.0;
         case BbPatchViewType_ObjectSubview:
         {
             //Select view and prepare to pan or move
-            [self.delegate patchView:self setScrollViewShouldBegin:NO];
+            [self.eventDelegate patchView:self setScrollViewShouldBegin:NO];
             UIView *first = gesture.firstView;
             self.selectedBox = ( self.firstViewType == BbPatchViewType_Object ) ? (BbBoxView *)first : (BbBoxView *)first.superview;
         }
@@ -138,16 +133,17 @@ static CGFloat              kMaxMovement          = 20.0;
                 return;
             }
             //Select outlet and prepare to draw connection
-            [self.delegate patchView:self setScrollViewShouldBegin:NO];
+            [self.eventDelegate patchView:self setScrollViewShouldBegin:NO];
             self.selectedOutlet = (BbOutletView *)gesture.firstView;
             
         }
             break;
         case BbPatchViewType_ActionObject:
         {
-            [self.delegate patchView:self setScrollViewShouldBegin:NO];
+            [self.eventDelegate patchView:self setScrollViewShouldBegin:NO];
             if ( isEditing ) {
                 //send object actions
+                [[objectView delegate]sendActionsForObjectView:objectView];
             }
         }
             break;
@@ -155,14 +151,14 @@ static CGFloat              kMaxMovement          = 20.0;
         {
             if ( !gesture.repeatCount ) {
                 [gesture stopTracking];
-                [self.delegate patchView:self setScrollViewShouldBegin:YES];
+                [self.eventDelegate patchView:self setScrollViewShouldBegin:YES];
             }
         }
             break;
         default:
         {
             [gesture stopTracking];
-            [self.delegate patchView:self setScrollViewShouldBegin:YES];
+            [self.eventDelegate patchView:self setScrollViewShouldBegin:YES];
         }
             break;
     }
@@ -172,14 +168,17 @@ static CGFloat              kMaxMovement          = 20.0;
 - (void)handleGestureMoved:(BbPatchGestureRecognizer *)gesture
 {
     self.currentViewType = [self viewType:gesture.currentView];
-    BOOL isEditing = ( self.editState > BbPatchViewEditState_Default );
-
+    BOOL isEditing = ( self.editState > BbObjectViewEditState_Default );
+    NSLog(@"gesture moved to view type: %@",@(self.currentViewType));
     switch (self.currentViewType) {
             
         case BbPatchViewType_Inlet:
         {
-            if ( !isEditing && self.hasSelectedOutlet ) {
+            if ( !isEditing && nil != self.selectedOutlet ) {
                 self.selectedInlet = (BbInletView *)gesture.currentView;
+                NSLog(@"we have a selected inlet!");
+            }else{
+                NSLog(@"current view is an inlet, but editing is %@ and selected outlet is %@",@(isEditing),self.selectedOutlet);
             }
         }
             break;
@@ -224,12 +223,16 @@ static CGFloat              kMaxMovement          = 20.0;
 - (void)handleGestureEnded:(BbPatchGestureRecognizer *)gesture
 {
     self.currentViewType = [self viewType:gesture.currentView];
-    BOOL isEditing = ( self.editState > BbPatchViewEditState_Default );
+    BOOL isEditing = ( self.editState > BbObjectViewEditState_Default );
     switch ( self.currentViewType ) {
+            
         case BbPatchViewType_Inlet:
         {
-            if ( !isEditing && self.hasSelectedOutlet && self.hasSelectedInlet ) {
+            if ( !isEditing && nil != self.selectedInlet && nil != self.selectedOutlet ) {
                 //make connection
+                [self.delegate objectView:self didConnectPortView:self.selectedOutlet toPortView:self.selectedInlet];
+            }else{
+                
             }
         }
             break;
@@ -237,6 +240,9 @@ static CGFloat              kMaxMovement          = 20.0;
         {
             if ( !isEditing && gesture.repeatCount && gesture.movement < kMaxMovement ) {
                 // add box
+                CGPoint point = gesture.position;
+                NSValue *pos = [NSValue valueWithCGPoint:[self point2Position:point]];
+                [self.delegate objectView:self didRequestPlaceholderViewAtPosition:pos];
             }
         }
             break;
@@ -301,7 +307,7 @@ static CGFloat              kMaxMovement          = 20.0;
     }else{
         _selectedBox.selected = YES;
         self.hasSelectedObject = YES;
-        [self.delegate patchView:self setScrollViewShouldBegin:NO];
+        [self.eventDelegate patchView:self setScrollViewShouldBegin:NO];
     }
 }
 
@@ -328,18 +334,15 @@ static CGFloat              kMaxMovement          = 20.0;
     }else{
         _selectedOutlet.selected = YES;
         self.hasSelectedInlet = YES;
-        [self.delegate patchView:self setScrollViewShouldBegin:NO];
+        [self.eventDelegate patchView:self setScrollViewShouldBegin:NO];
     }
 }
 
 - (NSArray *)getSelectedBoxViews
 {
-    if ( nil == self.boxViews ) {
-        return nil;
-    }
-    
+    NSArray *children = self.childViews.allObjects;
     NSPredicate *pred = [NSPredicate predicateWithFormat:@"%K == 1",@"selected"];
-    return [self.boxViews filteredArrayUsingPredicate:pred];
+    return [children filteredArrayUsingPredicate:pred];
 }
 
 #pragma mark - BbGestureHandlerHost
@@ -402,9 +405,9 @@ static CGFloat              kMaxMovement          = 20.0;
 
 - (CGPoint)positionForBoxView:(BbBoxView *)box withDeltaPos:(CGPoint)deltaPos
 {
-    CGPoint pos = [box getPosition];
-    pos.x+=deltaPos.y;
-    pos.y+=deltaPos.x;
+    CGPoint pos = box.center;
+    pos.x+=deltaPos.x;
+    pos.y+=deltaPos.y;
     return pos;
 }
 
@@ -426,6 +429,10 @@ static CGFloat              kMaxMovement          = 20.0;
              ];
 }
 
+- (void)redrawConnectionsIfNeeded
+{
+    [self setNeedsDisplay];
+}
 
 // Only override drawRect: if you perform custom drawing.
 // An empty implementation adversely affects performance during animation.
@@ -439,6 +446,23 @@ static CGFloat              kMaxMovement          = 20.0;
         [self.activeConnection moveToPoint:connectionOrigin];
         [self.activeConnection addLineToPoint:self.gesture.location];
         [self.activeConnection stroke];
+    }
+    
+    if ( self.connectionPathsToRedraw.allObjects.count ) {
+        for (BbConnectionPath *connectionPath in self.connectionPathsToRedraw ) {
+            if (nil != [connectionPath sendingView] && nil != [connectionPath receivingView] ){
+               CGPoint origin = [self convertPoint:[connectionPath sendingView].center fromView:[connectionPath sendingView].superview];
+                CGPoint terminus = [self convertPoint:[connectionPath receivingView].center fromView:[connectionPath receivingView].superview];
+                UIBezierPath *path = [UIBezierPath bezierPath];
+                [path moveToPoint:origin];
+                [path addLineToPoint:terminus];
+                [path setLineWidth:6];
+                [connectionPath.preferredColor setStroke];
+                [path stroke];
+            }
+        }
+        
+       // [self.connectionPathsToRedraw removeAllObjects];
     }
 }
 

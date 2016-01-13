@@ -7,13 +7,12 @@
 //
 
 #import <UIKit/UIKit.h>
-#import "BbObjectView.h"
-#import "BbObjectViewDataSource.h"
+#import "BbBridge.h"
 
 @class BbInletView;
 @class BbOutletView;
 
-@interface BbBoxView : UIView <BbObjectView>
+@interface BbBoxView : UIView
 
 @property (nonatomic,strong)                    UIColor                         *defaultFillColor;
 @property (nonatomic,strong)                    UIColor                         *selectedFillColor;
@@ -26,17 +25,47 @@
 
 @property (nonatomic,getter=isSelected)         BOOL                            selected;
 @property (nonatomic,getter=isEditing)          BOOL                            editing;
+@property (nonatomic)                           BbObjectViewEditState           editState;
+
 @property (nonatomic,weak)                      id<BbObjectViewDataSource>      dataSource;
+@property (nonatomic,weak)                      id<BbObjectViewDelegate>        delegate;
+
+@property (nonatomic,readonly)                  NSValue                         *objectViewPosition;
 
 - (instancetype)initWithTitleText:(NSString *)text inlets:(NSUInteger)numInlets outlets:(NSUInteger)numOutlets;
+
+- (void)setTitle:(NSString *)title;
+
 - (void)setPosition:(CGPoint)position;
+
 - (CGPoint)getPosition;
+
 - (NSArray *)positionConstraints;
+
+- (void)updateLayout;
+
+- (void)reloadViewsWithDataSource:(id<BbObjectViewDataSource>)dataSource;
+
+@end
+
+@interface BbBoxView (BbObjectView) <BbObjectView>
 
 #pragma mark - BbObjectView
 
-- (instancetype)initWithDataSource:(id<BbObjectViewDataSource>)dataSource;
++ (id<BbObjectView>)createViewWithDataSource:(id<BbObjectViewDataSource>)dataSource;
+
+- (void)setTitleText:(NSString *)titleText;
+
+- (void)setPositionWithValue:(NSValue *)value;
+
 - (id<BbObjectView>)viewForInletAtIndex:(NSUInteger)index;
+
 - (id<BbObjectView>)viewForOutletAtIndex:(NSUInteger)index;
+
+- (void)setDataSource:(id<BbObjectViewDataSource>)dataSource reloadViews:(BOOL)reload;
+
+- (void)doAction:(void(^)(void))action;
+
+- (void)suggestTextCompletion:(id)textCompletion;
 
 @end

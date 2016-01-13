@@ -8,25 +8,29 @@
 
 #import "BbBoxView.h"
 #import "UIView+Layout.h"
+#import "UIView+BbPatch.h"
 #import "BbPortView.h"
 
 static CGFloat kDefaultPortViewSpacing = 10;
 
-@interface BbBoxView ()
+@interface BbBoxView () <UITextFieldDelegate>
 
-@property (nonatomic)               NSUInteger      numIn;
-@property (nonatomic)               NSUInteger      numOut;
+@property (nonatomic)               NSUInteger          numIn;
+@property (nonatomic)               NSUInteger          numOut;
+@property (nonatomic,strong)        NSArray             *textFieldConstraints;
 
-@property (nonatomic)               CGPoint         myPosition;
-@property (nonatomic)               CGSize          myContentSize;
-@property (nonatomic)               CGFloat         myMinimumSpacing;
-@property (nonatomic,strong)        NSString        *myTitleText;
-@property (nonatomic,strong)        UIColor         *myFillColor;
-@property (nonatomic,strong)        UIColor         *myBorderColor;
-@property (nonatomic,strong)        UIColor         *myTextColor;
-@property (nonatomic,strong)        UILabel         *myLabel;
-@property (nonatomic,strong)        UIStackView     *inletsStackView;
-@property (nonatomic,strong)        UIStackView     *outletsStackView;
+@property (nonatomic)               CGPoint             myPosition;
+@property (nonatomic)               CGPoint             myOffset;
+@property (nonatomic)               CGSize              myContentSize;
+@property (nonatomic)               CGFloat             myMinimumSpacing;
+@property (nonatomic,strong)        NSString            *myTitleText;
+@property (nonatomic,strong)        UIColor             *myFillColor;
+@property (nonatomic,strong)        UIColor             *myBorderColor;
+@property (nonatomic,strong)        UIColor             *myTextColor;
+@property (nonatomic,strong)        UILabel             *myLabel;
+@property (nonatomic,strong)        UITextField         *myTextField;
+@property (nonatomic,strong)        UIStackView         *inletsStackView;
+@property (nonatomic,strong)        UIStackView         *outletsStackView;
 @property (nonatomic,strong)        NSLayoutConstraint  *centerXConstraint;
 @property (nonatomic,strong)        NSLayoutConstraint  *centerYConstraint;
 @property (nonatomic,strong)        NSLayoutConstraint  *inletStackRightEdge;
@@ -49,7 +53,7 @@ static CGFloat kDefaultPortViewSpacing = 10;
     return self;
 }
 
-- (void)commonInit
+- (void)setupAppearance
 {
     self.translatesAutoresizingMaskIntoConstraints = NO;
     self.defaultFillColor = [UIColor blackColor];
@@ -58,16 +62,24 @@ static CGFloat kDefaultPortViewSpacing = 10;
     self.selectedFillColor = [UIColor colorWithWhite:0.3 alpha:1.0];
     self.selectedBorderColor = self.defaultBorderColor;
     self.selectedTextColor = self.defaultTextColor;
+}
+
+- (void)setupLabel
+{
     self.myLabel = [UILabel new];
     self.myLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    
     [self addSubview:self.myLabel];
     [self addConstraint:[self.myLabel alignCenterXToSuperOffset:0.0]];
     [self addConstraint:[self.myLabel alignCenterYToSuperOffset:0.0]];
-    
-    self.inletViews = [BbBoxView makeInletViews:self.numIn];
-    self.outletViews = [BbBoxView makeOutletViews:self.numOut];
+}
+
+- (void)setupInletViews
+{
+    self.inletViews = [self makeInletViews:self.numIn];
     
     if ( self.inletViews ) {
+        
         self.inletsStackView = [[UIStackView alloc]initWithArrangedSubviews:self.inletViews];
         self.inletsStackView.translatesAutoresizingMaskIntoConstraints = NO;
         self.inletsStackView.axis = UILayoutConstraintAxisHorizontal;
@@ -82,7 +94,12 @@ static CGFloat kDefaultPortViewSpacing = 10;
         }
         [self addConstraint:[self pinEdge:LayoutEdge_Top toEdge:LayoutEdge_Top ofView:self.inletsStackView withInset:0]];
     }
-    
+}
+
+- (void)setupOutletViews
+{
+    self.outletViews = [self makeOutletViews:self.numOut];
+
     if ( self.outletViews ) {
         self.outletsStackView = [[UIStackView alloc]initWithArrangedSubviews:self.outletViews];
         self.outletsStackView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -98,26 +115,48 @@ static CGFloat kDefaultPortViewSpacing = 10;
         }
         [self addConstraint:[self pinEdge:LayoutEdge_Bottom toEdge:LayoutEdge_Bottom ofView:self.outletsStackView withInset:0]];
     }
+}
+
+- (void)commonInit
+{
+    [self setupAppearance];
+    [self setupLabel];
+    [self setupInletViews];
+    [self setupOutletViews];
     [self updateAppearanceAnimated:NO];
 }
 
+
 - (void)didMoveToSuperview
 {
-    _myPosition = CGPointZero;
-    self.centerXConstraint = [self alignCenterYToSuperOffset:0.0];
-    self.centerYConstraint = [self alignCenterXToSuperOffset:0.0];
-    if ( nil != self.dataSource ) {
-        NSValue *pos = [self.dataSource positionForObjectView:self];
-        [self setPosition:pos.CGPointValue];
+    self.centerXConstraint = [self alignCenterXToSuperOffset:0];
+    self.centerYConstraint = [self alignCenterYToSuperOffset:0];
+}
+
+- (void)updateLayout
+{
+    if ( nil == self.superview || CGRectIsEmpty(self.superview.bounds) ) {
+        return;
     }
+    NSValue *pos = [self.dataSource positionForObjectView:self];
+    _myPosition = [pos CGPointValue];
+    _myOffset = [self position2Offset:_myPosition];
+    [self updatePositionConstraints];
+}
+
+- (void)updatePositionConstraints
+{
+    self.centerXConstraint.constant = _myOffset.x;
+    self.centerYConstraint.constant = _myOffset.y;
+    [self.superview layoutIfNeeded];
 }
 
 - (void)setPosition:(CGPoint)position
 {
-    _myPosition = position;
-    self.centerXConstraint.constant = position.x;
-    self.centerYConstraint.constant = position.y;
-    [self.superview layoutIfNeeded];
+    _myPosition = [self point2Position:position];
+    _myOffset = [self point2Offset:position];
+    [self updatePositionConstraints];
+    [self.delegate objectView:self didChangePosition:[NSValue valueWithCGPoint:_myPosition]];
 }
 
 - (CGPoint)getPosition
@@ -149,6 +188,74 @@ static CGFloat kDefaultPortViewSpacing = 10;
     }
     
     [self updateAppearanceAnimated:animate];
+}
+
+- (void)setEditing:(BOOL)editing
+{
+    BOOL wasEditing = _editing;
+    _editing = editing;
+    
+    if ( _editing != wasEditing ) {
+        [self handleEditingDidChange:editing];
+    }
+}
+
+- (void)setupTextField
+{
+    self.myTextField = [UITextField new];
+    self.myTextField.translatesAutoresizingMaskIntoConstraints = NO;
+    self.myTextField.font = self.myLabel.font;
+    self.myTextField.textColor = self.myLabel.textColor;
+    self.myTextField.textAlignment = self.myLabel.textAlignment;
+    [self insertSubview:self.myTextField aboveSubview:self.myLabel];
+    
+    NSMutableArray *temp = [NSMutableArray array];
+    [temp addObject:[self.myTextField pinEdge:LayoutEdge_Top toEdge:LayoutEdge_Top ofView:self.myLabel withInset:0]];
+    [temp addObject:[self.myTextField pinEdge:LayoutEdge_Right toEdge:LayoutEdge_Right ofView:self.myLabel withInset:0]];
+    [temp addObject:[self.myTextField pinEdge:LayoutEdge_Bottom toEdge:LayoutEdge_Bottom ofView:self.myLabel withInset:0]];
+    [temp addObject:[self.myTextField pinEdge:LayoutEdge_Left toEdge:LayoutEdge_Left ofView:self.myLabel withInset:0]];
+    self.textFieldConstraints = temp;
+    [self addConstraints:self.textFieldConstraints];
+    self.myTextField.delegate = self;
+    [self.myTextField becomeFirstResponder];
+}
+
+- (void)tearDownTextField
+{
+    [self removeConstraints:self.textFieldConstraints];
+    [self.myTextField removeFromSuperview];
+    self.myTextField = nil;
+    self.textFieldConstraints = nil;
+}
+
+- (void)handleEditingDidChange:(BOOL)editing
+{
+    if ( editing ) {
+        self.myLabel.alpha = 0.0;
+        [self setupTextField];
+    }else{
+        [self tearDownTextField];
+        self.myLabel.alpha = 1.0;
+    }
+}
+
+- (void)reloadViewsWithDataSource:(id<BbObjectViewDataSource>)dataSource
+{
+    _dataSource = dataSource;
+    [self removeConstraints:self.constraints];
+    [self.inletsStackView removeFromSuperview];
+    self.inletViews = nil;
+    [self.outletsStackView removeFromSuperview];
+    self.outletViews = nil;
+    [self.myLabel removeFromSuperview];
+    self.myLabel = nil;
+    self.numIn = [dataSource numberOfInletsForObjectView:self];
+    self.numOut = [dataSource numberOfOutletsForObjectView:self];
+    self.myTitleText = [dataSource titleTextForObjectView:self];
+    [self setupLabel];
+    [self setupInletViews];
+    [self setupOutletViews];
+    [self updateAppearanceAnimated:NO];
 }
 
 - (void)updateAppearanceAnimated:(BOOL)animated
@@ -197,7 +304,7 @@ static CGFloat kDefaultPortViewSpacing = 10;
 
 - (void)calculateSpacingAndContentSize
 {
-    CGSize labelSize = [BbBoxView sizeForText:self.myTitleText attributes:[self myLabelAttributes]];
+    CGSize labelSize = [BbBoxView sizeForText:self.myTitleText attributes:[self myTextAttributes]];
     CGSize inletStackSize = [BbBoxView sizeForPortViews:self.inletViews minimumSpacing:kDefaultPortViewSpacing];
     CGSize outletStackSize = [BbBoxView sizeForPortViews:self.outletViews minimumSpacing:kDefaultPortViewSpacing];
     
@@ -223,7 +330,7 @@ static CGFloat kDefaultPortViewSpacing = 10;
     }
 }
 
-+ (NSArray *)makeInletViews:(NSUInteger)numIn
+- (NSArray *)makeInletViews:(NSUInteger)numIn
 {
     if ( !numIn ) {
         return nil;
@@ -234,12 +341,13 @@ static CGFloat kDefaultPortViewSpacing = 10;
         BbInletView *inletView = [BbInletView new];
         inletView.tag = i;
         [array addObject:inletView];
+        [self.delegate objectView:self didAddPortView:inletView inScope:1 atIndex:i];
     }
     
     return array;
 }
 
-+ (NSArray *)makeOutletViews:(NSUInteger)numOut
+- (NSArray *)makeOutletViews:(NSUInteger)numOut
 {
     if ( !numOut ) {
         return nil;
@@ -250,6 +358,7 @@ static CGFloat kDefaultPortViewSpacing = 10;
         BbOutletView *outletView = [BbOutletView new];
         outletView.tag = i;
         [array addObject:outletView];
+        [self.delegate objectView:self didAddPortView:outletView inScope:0 atIndex:i];
     }
     
     return array;
@@ -258,6 +367,20 @@ static CGFloat kDefaultPortViewSpacing = 10;
 - (CGSize)intrinsicContentSize
 {
     return self.myContentSize;
+}
+
+- (NSDictionary *)myTextAttributes
+{
+    if ( self.isEditing ) {
+        return [self myTextFieldAttributes];
+    }else{
+        return [self myLabelAttributes];
+    }
+}
+
+- (NSDictionary *)myTextFieldAttributes
+{
+    return @{NSFontAttributeName:self.myTextField.font};
 }
 
 - (NSDictionary *)myLabelAttributes
@@ -272,36 +395,56 @@ static CGFloat kDefaultPortViewSpacing = 10;
 
 + (CGSize)sizeForPortViews:(NSArray *)portViews minimumSpacing:(CGFloat)minimumSpacing
 {
+    if ( nil == portViews ) {
+        return CGSizeMake(0.0, [BbPortView defaultPortViewSize].height);
+    }
     CGSize size = [BbPortView defaultPortViewSize];
     size.width *= (CGFloat)portViews.count;
     size.width += (CGFloat)(portViews.count - 1) * minimumSpacing;
     return size;
 }
 
-#pragma mark - BbObjectView
-
 - (instancetype)initWithDataSource:(id<BbObjectViewDataSource>)dataSource
 {
     _dataSource = dataSource;
-    return [self initWithTitleText:[_dataSource titleTextForObjectView:self] inlets:[_dataSource numberOfInletsForObjectView:self] outlets:[_dataSource numberOfOutletsForObjectView:self]];
+    self = [self initWithTitleText:[_dataSource titleTextForObjectView:self] inlets:[_dataSource numberOfInletsForObjectView:self] outlets:[_dataSource numberOfOutletsForObjectView:self]];
+    return self;
 }
 
-- (id<BbObjectView>)viewForInletAtIndex:(NSUInteger)index
+- (void)textFieldTextDidChange:(id)sender
 {
-    if ( index >= self.inletViews.count ) {
-        return nil;
-    }
-    
-    return self.inletViews[index];
+    UITextField *textField = sender;
+    self.myTitleText = textField.text;
+    [self updateAppearanceAnimated:NO];
 }
 
-- (id<BbObjectView>)viewForOutletAtIndex:(NSUInteger)index
+#pragma mark - UITextFieldDelegate
+
+- (BOOL)textFieldShouldBeginEditing:(UITextField *)textField
 {
-    if ( index >= self.outletViews.count ) {
-        return nil;
-    }
-    
-    return self.outletViews[index];
+    return self.isEditing;
+}
+
+- (BOOL)textFieldShouldClear:(UITextField *)textField
+{
+    return YES;
+}
+
+- (BOOL)textFieldShouldEndEditing:(UITextField *)textField
+{
+    return YES;
+}
+
+- (void)textFieldDidBeginEditing:(UITextField *)textField
+{
+    [self.delegate objectView:self textField:textField didEditWithEvent:BbObjectViewEditingEvent_Began];
+    [textField addTarget:self action:@selector(textFieldTextDidChange:) forControlEvents:UIControlEventAllEditingEvents];
+}
+
+- (void)textFieldDidEndEditing:(UITextField *)textField
+{
+    [self.delegate objectView:self textField:textField didEditWithEvent:BbObjectViewEditingEvent_Ended];
+    [textField removeTarget:self action:@selector(textFieldTextDidChange:) forControlEvents:UIControlEventAllEditingEvents];
 }
 
 /*
