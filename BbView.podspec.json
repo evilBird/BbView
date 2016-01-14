@@ -1,11 +1,11 @@
 {
   "name": "BbView",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "summary": "Views for Bb Objects",
   "authors": { 
     "Travis Henspeter": "developer@birdsoundmusic.com"
   },
-  "homepage": "https://www.github.com/evilBird/BbView",
+  "homepage": "https://github.com/EvilBird/BbView",
   "license": {
     "type": "Commerical",
     "file": "LICENSE"
@@ -15,8 +15,8 @@
   },
   "requires_arc": true,
   "source": {
-    "git": "https://www.github.com/evilBird/BbView.git",
-    "tag": "0.0.2"
+    "git": "https://github.com/EvilBird/BbView.git",
+    "tag": "0.0.3"
   },
   "frameworks": [
     "Foundation",
