@@ -39,13 +39,11 @@ typedef NS_ENUM(NSInteger, BbPatchViewType){
 @property (nonatomic)                       BbObjectViewEditState           editState;
 @property (nonatomic,getter=isOpen)         BOOL                            open;
 @property (nonatomic,strong)                NSHashTable                     *childViews;
+@property (nonatomic,strong)                NSHashTable                     *connections;
 
 @property (nonatomic,weak)                  id<BbObjectViewDataSource>      dataSource;
-@property (nonatomic,weak)                  id<BbObjectViewDelegate>        delegate;
+@property (nonatomic,weak)                  id<BbObjectViewEditingDelegate> delegate;
 
-
-@property (nonatomic,strong)                NSMutableSet                    *connectionPaths;
-@property (nonatomic,strong)                NSMutableSet                    *connectionPathsToRedraw;
 
 - (void)redrawConnectionsIfNeeded;
 
@@ -79,14 +77,8 @@ typedef NS_ENUM(NSInteger, BbPatchViewType){
 
 - (void)setContentOffsetWithValue:(NSValue *)value;
 
-@end
+- (void)addConnection:(id<BbConnection>)connection;
 
-@interface BbPatchView (BbConnectionPathDelegate) <BbConnectionPathDelegate>
-
-- (void)redrawConnectionPath:(id<BbConnectionPath>)connectionPath;
-
-- (void)addConnectionPath:(id<BbConnectionPath>)connectionPath;
-
-- (void)removeConnectionPath:(id<BbConnectionPath>)connectionPath;
+- (void)removeConnection:(id<BbConnection>)connection;
 
 @end

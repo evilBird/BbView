@@ -151,6 +151,14 @@ static CGFloat kDefaultPortViewSpacing = 10;
     [self.superview layoutIfNeeded];
 }
 
+- (void)moveToPoint:(CGPoint)point
+{
+    _myPosition = [self point2Position:point];
+    _myOffset = [self position2Offset:point];
+    [self updatePositionConstraints];
+    [self.delegate objectView:self didChangePosition:[NSValue valueWithCGPoint:_myPosition]];
+}
+
 - (void)setPosition:(CGPoint)position
 {
     _myPosition = [self point2Position:position];
@@ -404,20 +412,6 @@ static CGFloat kDefaultPortViewSpacing = 10;
     return size;
 }
 
-- (instancetype)initWithDataSource:(id<BbObjectViewDataSource>)dataSource
-{
-    _dataSource = dataSource;
-    self = [self initWithTitleText:[_dataSource titleTextForObjectView:self] inlets:[_dataSource numberOfInletsForObjectView:self] outlets:[_dataSource numberOfOutletsForObjectView:self]];
-    return self;
-}
-
-- (void)textFieldTextDidChange:(id)sender
-{
-    UITextField *textField = sender;
-    self.myTitleText = textField.text;
-    [self updateAppearanceAnimated:NO];
-}
-
 #pragma mark - UITextFieldDelegate
 
 - (BOOL)textFieldShouldBeginEditing:(UITextField *)textField
@@ -432,20 +426,43 @@ static CGFloat kDefaultPortViewSpacing = 10;
 
 - (BOOL)textFieldShouldEndEditing:(UITextField *)textField
 {
-    return YES;
+    return [self.editingDelegate objectView:self shouldEndEditingWithText:textField.text];
 }
 
 - (void)textFieldDidBeginEditing:(UITextField *)textField
 {
-    [self.delegate objectView:self textField:textField didEditWithEvent:BbObjectViewEditingEvent_Began];
     [textField addTarget:self action:@selector(textFieldTextDidChange:) forControlEvents:UIControlEventAllEditingEvents];
+}
+
+- (void)textFieldTextDidChange:(id)sender
+{
+    UITextField *textField = sender;
+    [self.editingDelegate objectView:self didEditText:textField.text];
+    self.myTitleText = textField.text;
+    [self updateAppearanceAnimated:NO];
 }
 
 - (void)textFieldDidEndEditing:(UITextField *)textField
 {
-    [self.delegate objectView:self textField:textField didEditWithEvent:BbObjectViewEditingEvent_Ended];
     [textField removeTarget:self action:@selector(textFieldTextDidChange:) forControlEvents:UIControlEventAllEditingEvents];
 }
+
+#pragma mark - BbObjectView constructors
+
+- (instancetype)initWithDataSource:(id<BbObjectViewDataSource>)dataSource
+{
+    _dataSource = dataSource;
+    self = [self initWithTitleText:[_dataSource titleTextForObjectView:self] inlets:[_dataSource numberOfInletsForObjectView:self] outlets:[_dataSource numberOfOutletsForObjectView:self]];
+    return self;
+}
+
++ (id<BbObjectView>)createPlaceholder
+{
+    BbBoxView *placeholder = [[BbBoxView alloc]initWithTitleText:@"New Object" inlets:0 outlets:0];
+    return placeholder;
+}
+
+
 
 /*
 // Only override drawRect: if you perform custom drawing.

@@ -17,10 +17,7 @@
     }
     
     [self layoutIfNeeded];
-    
-    [self.connectionPathsToRedraw addObjectsFromArray:self.connectionPaths.allObjects];
-    [self redrawConnectionsIfNeeded];
-    
+    [self setNeedsDisplay];
 }
 
 + (id<BbObjectView>)createViewWithDataSource:(id<BbObjectViewDataSource>)dataSource

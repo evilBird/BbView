@@ -29,12 +29,19 @@
 
 @property (nonatomic,weak)                      id<BbObjectViewDataSource>      dataSource;
 @property (nonatomic,weak)                      id<BbObjectViewDelegate>        delegate;
+@property (nonatomic,weak)                      id<BbObjectViewEditingDelegate> editingDelegate;
 
 @property (nonatomic,readonly)                  NSValue                         *objectViewPosition;
+
++ (id<BbObjectView>)createPlaceholder;
+
+- (void)beginEditingWithDelegate:(id<BbObjectViewEditingDelegate>)editingDelegate;
 
 - (instancetype)initWithTitleText:(NSString *)text inlets:(NSUInteger)numInlets outlets:(NSUInteger)numOutlets;
 
 - (void)setTitle:(NSString *)title;
+
+- (void)moveToPoint:(CGPoint)point;
 
 - (void)setPosition:(CGPoint)position;
 
